@@ -1,7 +1,7 @@
 # PythonRPA
 利用opencv+pynput实现的Python RPA工具  
 
-![](images/1-2012091635335V.jpg)
+![](RPA.jpg)
 
 ## 依赖安装
 ```bash
