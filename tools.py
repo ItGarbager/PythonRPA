@@ -21,7 +21,7 @@ key_input = getattr(pynput.keyboard.Controller, 'type')
 
 
 def key_type(self, key, *args, **kwargs):
-    if isinstance(key, str):
+    if not isinstance(key, list):
         clipboard.copy(key)
         controlKey = Key.ctrl if os.name == 'nt' else Key.cmd
         with self.pressed(controlKey):
@@ -39,7 +39,7 @@ def key_group(self, keys: str):
     keys = keys.split('+')
     len_keys = len(keys)
     if len_keys > 3 or len_keys < 0:
-        return
+        raise
     for index, key in enumerate(keys):
         key = key.lower()
         is_have = hasattr(Key, key)
@@ -58,7 +58,7 @@ def key_group(self, keys: str):
         with self.pressed(keys[0]):
             with self.pressed(keys[1]):
                 self.press(keys[2])
-                self.release(keys[3])
+                self.release(keys[2])
 
 
 pynput.keyboard.Controller.group = key_group  # -------------- 组合键
