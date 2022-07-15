@@ -69,7 +69,7 @@ def test_action2():
     #                     {
     #                         'loop_limit': 4, 'is_require': False, 'is_many': True,
     #                         'threshold': 0.89,
-    #                         # 'is_show': True, 'is_label': True
+    #                         # 'is_show': True,
     #                     }
     #                 ],
     #                 ('sleep', None, 1.2),
@@ -101,7 +101,7 @@ def test_action2():
                     'mouse_click', 'images/test2/11.png', Button.left, 1,
                     loop_limit=4, threshold=0.89,
                     is_require=False, is_many=True,
-                    is_show=True, is_label=True,
+                    is_show=True,
                 ),
                 Task('sleep', None, 1.2),
                 Task('mouse_scroll', None, 0, -12),

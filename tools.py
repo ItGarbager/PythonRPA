@@ -3,6 +3,7 @@ import math
 import os
 import traceback
 from time import sleep, time
+from typing import List
 
 import clipboard
 import cv2
@@ -21,12 +22,21 @@ key_input = getattr(pynput.keyboard.Controller, 'type')
 
 
 def key_type(self, key, *args, **kwargs):
-    if not isinstance(key, list):
-        clipboard.copy(key)
+    """
+    重写 pynput.keyboard.Controller.type 方法
+    :param self: Controller 对象
+    :param key: 调用 type 时传入的第一个位置参
+    :param args:
+    :param kwargs:
+    """
+    if not isinstance(key, list):  # 当 key 类型不为 list 时，代表传入的为字符串， list 为输入的具体的按键
+        clipboard.copy(key)  # 调用 ctrl+c 复制内容
         controlKey = Key.ctrl if os.name == 'nt' else Key.cmd
+        # 模拟 ctrl+v 输入信息
         with self.pressed(controlKey):
             self.press('v')
             self.release('v')
+            self.release(Key.enter)  # 输入完成后默认跟一个回车，可选择删掉
     else:
         key_input(self, key, *args, **kwargs)
 
@@ -36,17 +46,26 @@ pynput.keyboard.Controller.type = key_type  # -------------- 重写 type
 
 # -------------- 组合键
 def key_group(self, keys: str):
+    """
+    实现组合键的方法
+    :param self: Controller 对象
+    :param keys: 组合键的字符串
+    :return:
+    """
     keys = keys.split('+')
     len_keys = len(keys)
-    if len_keys > 3 or len_keys < 0:
-        raise
+    if len_keys > 3:
+        raise Exception('仅支持最多3个键')
+    if len_keys < 0:
+        raise Exception('未输入按键')
     for index, key in enumerate(keys):
-        key = key.lower()
+        key = key.lower()  # 统一小写
         is_have = hasattr(Key, key)
         if is_have:
             keys[index] = getattr(Key, key)
         else:
             keys[index] = key
+    # 组合键的实现
     if len_keys == 1:
         self.press(keys[0])
         self.release(keys[0])
@@ -65,6 +84,7 @@ pynput.keyboard.Controller.group = key_group  # -------------- 组合键
 
 
 def grab_screen(region=None):
+    """屏幕截图"""
     hwin = win32gui.GetDesktopWindow()
 
     if region:
@@ -95,11 +115,21 @@ def grab_screen(region=None):
     return img  # , cv2.cvtColor(img, cv2.COLOR_BGRA2RGB)
 
 
-def match_image(image_path, img_rgb, threshold=0.95, is_label=False, is_many=False):
+def match_image(image_path, img_rgb, threshold=0.95, is_show=False, is_many=False) -> List:
+    """
+    opencv 实现图片匹配
+    :param image_path: 图片路径
+    :param img_rgb: 背景图，此处默认传入全屏
+    :param threshold: 匹配度
+    :param is_show: 是否展示
+    :param is_many: 是否匹配多个目标
+    :return: 匹配到的目标坐标的列表
+    """
+
     def fo():
         right_bottom = (left_top[0] + w, left_top[1] + h)  # 右下角
         middles.append((left_top[0] + math.floor(w / 2), left_top[1] + math.floor(h / 2)))  # 中间的位置
-        if is_label:
+        if is_show:
             cv2.rectangle(img_rgb, left_top, right_bottom, (0, 0, 255), 2)  # 画出矩形位置
 
     template = cv2.imread(image_path, 0)
@@ -124,6 +154,11 @@ def match_image(image_path, img_rgb, threshold=0.95, is_label=False, is_many=Fal
 
 
 def do_tasks(tasks):
+    """
+    执行自动化任务列表
+    :param tasks: 任务列表
+    :return:
+    """
     try:
         for task in tasks:
             if isinstance(task, tuple):
@@ -140,12 +175,13 @@ def to_do(
         width=win32api.GetSystemMetrics(win32con.SM_CXVIRTUALSCREEN),
         height=win32api.GetSystemMetrics(win32con.SM_CYVIRTUALSCREEN),
         winname='match', threshold=.87, do_count=1, loop_limit=30,
-        is_show=False, is_label=False,
-        is_save=False, is_require=True, is_many=False,
+        is_show=False, is_save=False,
+        is_require=True, is_many=False,
         **kwargs
 ):
+    """执行任务"""
     for i in range(do_count):
-        logger.debug(f'{action}-{image_path} Task execution round {i + 1}')
+        logger.debug(f'({action}{" " + image_path if image_path else ""}) Task execution round {i + 1}')
         # 存在图片
         middles = None
         if image_path:
@@ -153,19 +189,19 @@ def to_do(
             while True:
                 c += 1
                 img = grab_screen((0, 0, width, height))
-                middles = match_image(image_path, img, is_label=is_label, threshold=threshold, is_many=is_many)
+                middles = match_image(image_path, img, is_show=is_show, threshold=threshold, is_many=is_many)
                 if middles or c > loop_limit:
                     break
                 else:
                     sleep(.2)
-                    logger.warning(f'{image_path} retry {c} time{"s" if c > 1 else ""}')
+                    logger.warning(f'{image_path} ==== retry {c} time{"s" if c > 1 else ""}')
             if not middles:
                 if is_require:
                     logger.error(f'Match image failed, please check image {image_path}')
                     exit(1)
                 else:
                     return
-            logger.debug(f'matched {image_path} ==> {middles}')
+            logger.info(f'matched {image_path} ==> {middles}')
 
             if is_show:
                 cv2.namedWindow(winname, cv2.WINDOW_NORMAL)
