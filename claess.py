@@ -70,7 +70,8 @@ class Input:
     def __init__(self, action: Union[Action, int, None] = None, arg=None, image_path=None, **kwargs):
         if not action:
             action = 0
-
+        if isinstance(arg, float):
+            arg = int(arg)
         if action == 9:
             # 若为事件集类型则调用 get_xlsx_tasks 函数继续获取相应事件集的 TaskList 生成器对象
             arg = get_xlsx_tasks(excel_path='tasks.xlsx', sheet_name=arg)
