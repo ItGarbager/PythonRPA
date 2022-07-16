@@ -200,6 +200,8 @@ def do_tasks(tasks):
                 to_do(*task[0], **task[1])
     except SystemExit:
         exit(1)
+    except KeyboardInterrupt:
+        exit(1)
     except:
         logger.error(f'{traceback.format_exc()}')
 
