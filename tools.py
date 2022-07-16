@@ -17,6 +17,27 @@ from pynput.keyboard import Key
 
 logger = logging.getLogger(__name__)
 
+
+def mouse_press(key='left'):
+    if key == 'left':
+        win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0)
+    elif key == 'right':
+        win32api.mouse_event(win32con.MOUSEEVENTF_RIGHTDOWN, 0, 0, 0, 0)
+
+
+def mouse_release(key='left'):
+    if key == 'left':
+        win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP, 0, 0, 0, 0)
+    elif key == 'right':
+        win32api.mouse_event(win32con.MOUSEEVENTF_RIGHTUP, 0, 0, 0, 0)
+
+
+def mouse_click(key='left', count=1):  # 模拟鼠标点击
+    for i in range(count):
+        mouse_press(key)
+        mouse_release(key)
+
+
 # -------------- 重写 type
 key_input = getattr(pynput.keyboard.Controller, 'type')
 
@@ -36,7 +57,7 @@ def key_type(self, key, *args, **kwargs):
         with self.pressed(controlKey):
             self.press('v')
             self.release('v')
-            self.release(Key.enter)  # 输入完成后默认跟一个回车，可选择删掉
+            # self.release(Key.enter)  # 输入完成后默认跟一个回车，可选择删掉
     else:
         key_input(self, key, *args, **kwargs)
 
@@ -81,6 +102,10 @@ def key_group(self, keys: str):
 
 
 pynput.keyboard.Controller.group = key_group  # -------------- 组合键
+
+
+def exit_all(*args, **kwargs):
+    raise SystemExit('exit...')
 
 
 def grab_screen(region=None):
@@ -165,6 +190,8 @@ def do_tasks(tasks):
                 to_do(*task)
             elif isinstance(task, list):
                 to_do(*task[0], **task[1])
+    except SystemExit:
+        exit(1)
     except:
         logger.error(f'{traceback.format_exc()}')
 
@@ -180,8 +207,11 @@ def to_do(
         **kwargs
 ):
     """执行任务"""
-    for i in range(do_count):
-        logger.debug(f'({action}{" " + image_path if image_path else ""}) Task execution round {i + 1}')
+    do_c = 0
+    while do_count == -1 or do_c < do_count:
+        do_c += 1
+        logger.info(f'{action or "":<25} round {do_c}')
+
         # 存在图片
         middles = None
         if image_path:
@@ -193,12 +223,12 @@ def to_do(
                 if middles or c > loop_limit:
                     break
                 else:
-                    sleep(.2)
-                    logger.warning(f'{image_path} ==== retry {c} time{"s" if c > 1 else ""}')
+                    sleep(0.05)
+                    logger.warning(f'{image_path:<25} retry {c}')
             if not middles:
                 if is_require:
                     logger.error(f'Match image failed, please check image {image_path}')
-                    exit(1)
+                    exit(0)
                 else:
                     return
             logger.info(f'matched {image_path} ==> {middles}')
@@ -223,39 +253,38 @@ def to_do(
             if is_save:
                 cv2.imwrite(f'save_{int(time())}.png', img)
 
-        ctr = pynput.mouse.Controller()
         if action:
 
             if action.startswith('mouse_'):
-                action_type = action[len('mouse_'):]
-                controller = ctr
+                func = globals().get(action, None)
             elif action.startswith('keyboard_'):
                 action_type = action[len('keyboard_'):]
                 controller = pynput.keyboard.Controller()
+                func = getattr(controller, action_type, None)
             elif action == 'sleep':
                 sleep(*args, **kwargs)
                 continue
             elif action == 'actions':
+                format_arg = 'load ' + str(args[-1])
+                logger.info(f'{format_arg:<25} success')
                 do_tasks(*args, **kwargs)
                 continue
+            elif action == 'exit':
+                func = exit_all
             else:
                 continue
             if middles is None:
-                is_have = hasattr(controller, action_type)
-                if is_have:
-                    func = getattr(controller, action_type)
 
+                if func:
                     func(*args, **kwargs)
+
             else:
                 for middle in middles:
-                    ctr.position = middle
-                    sleep(.2)
-                    is_have = hasattr(controller, action_type)
-                    if is_have:
-                        func = getattr(controller, action_type)
+                    win32api.SetCursorPos(middle)
+                    sleep(0.03)
+                    if func:
                         func(*args, **kwargs)
         else:
             if middles is not None:
                 for middle in middles:
-                    ctr.position = middle
-                    sleep(.2)
+                    win32api.SetCursorPos(middle)

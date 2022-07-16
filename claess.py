@@ -1,7 +1,6 @@
 from typing import Union
 
 import pandas as pd
-from pynput.mouse import Button
 
 
 class Task:
@@ -36,6 +35,12 @@ class TaskList:
             # 返回格式化 Task 数据
             yield task.get_data()
 
+    def __str__(self):
+        if hasattr(self, 'name'):
+            return f'<TaskList {self.name}>'
+
+    __repr__ = __str__
+
 
 class Action:
     """事件"""
@@ -48,37 +53,46 @@ class Action:
     input_str = 6
     press_keyboard = 7
     sleep = 8
-    actions = 9
+    exit = 9
+    actions = 10
 
 
 class Input:
     """根据传入参数构建 TaskList 生成器对象"""
     # 构建一个初始化的类型字典
     __action_dict = {
-        0: [None, None, None],  # 未传入事件
-        1: ['mouse_click', None, Button.left, None],
-        2: ['mouse_click', None, Button.right, None],
-        3: ['mouse_press', None, Button.left, None],
-        4: ['mouse_release', None, Button.left, None],
-        5: ['mouse_scroll', None, 0, None],
-        6: ['keyboard_type', None, None],
-        7: ['keyboard_group', None, None],
-        8: ['sleep', None, None],
-        9: ['actions', None, None],
+        Action.nothing: ['', None, None],  # 未传入事件
+        Action.click_left_button: ['mouse_click', None, 'left', None],
+        Action.click_right_button: ['mouse_click', None, 'right', None],
+        Action.press_left_button: ['mouse_press', None, 'left'],
+        Action.release_left_button: ['mouse_release', None, 'right'],
+        Action.scroll_button: ['mouse_scroll', None, 0, None],
+        Action.input_str: ['keyboard_type', None, None],
+        Action.press_keyboard: ['keyboard_group', None, None],
+        Action.sleep: ['sleep', None, None],
+        Action.exit: ['exit', None, None],
+        Action.actions: ['actions', None, None],
     }
 
-    def __init__(self, action: Union[Action, int, None] = None, arg=None, image_path=None, **kwargs):
+    def __init__(
+            self, action: Union[Action, int, None] = None, arg=None, image_path=None,
+            excel_path='tasks.xlsx',
+            **kwargs
+    ):
         if not action:
-            action = 0
+            action = Action.nothing
         if isinstance(arg, float):
-            arg = int(arg)
-        if action == 9:
+            int_arg = int(arg)
+            arg = (arg == int_arg) and int_arg or arg
+
+        if action == Action.actions:
             # 若为事件集类型则调用 get_xlsx_tasks 函数继续获取相应事件集的 TaskList 生成器对象
-            arg = get_xlsx_tasks(excel_path='tasks.xlsx', sheet_name=arg)
+            arg = get_xlsx_tasks(excel_path=excel_path, sheet_name=arg)
 
         action = self.__action_dict.get(action)
         # 进行参数构建
-        action[-1] = arg
+        if action[-1] is None:
+            action[-1] = arg
         action[1] = image_path
         action = tuple(action)
         # 构建任务对象
@@ -110,6 +124,7 @@ def get_xlsx_tasks(excel_path='tasks.xlsx', sheet_name='main') -> TaskList:
     # 处理完成后构建任务列表
     task_list = (
         Input(
+            excel_path=excel_path,
             **kwargs
         ).task
         for kwargs in kwargs_list
@@ -118,4 +133,5 @@ def get_xlsx_tasks(excel_path='tasks.xlsx', sheet_name='main') -> TaskList:
     tasks = TaskList(
         *task_list
     )
+    tasks.name = f'{sheet_name}'
     return tasks
