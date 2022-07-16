@@ -18,6 +18,13 @@ from pynput.keyboard import Key
 logger = logging.getLogger(__name__)
 
 
+def mouse_move(pos, curr=False):
+    if curr:
+        current_pos = win32api.GetCursorPos()
+        pos = (np.array(current_pos) + np.array(pos)).tolist()
+    win32api.SetCursorPos(pos)
+
+
 def mouse_press(key='left'):
     if key == 'left':
         win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0)
@@ -186,6 +193,7 @@ def do_tasks(tasks):
     """
     try:
         for task in tasks:
+
             if isinstance(task, tuple):
                 to_do(*task)
             elif isinstance(task, list):
@@ -211,7 +219,6 @@ def to_do(
     while do_count == -1 or do_c < do_count:
         do_c += 1
         logger.info(f'{action or "":<25} round {do_c}')
-
         # 存在图片
         middles = None
         if image_path:
@@ -254,9 +261,9 @@ def to_do(
                 cv2.imwrite(f'save_{int(time())}.png', img)
 
         if action:
-
             if action.startswith('mouse_'):
                 func = globals().get(action, None)
+
             elif action.startswith('keyboard_'):
                 action_type = action[len('keyboard_'):]
                 controller = pynput.keyboard.Controller()
@@ -274,17 +281,16 @@ def to_do(
             else:
                 continue
             if middles is None:
-
                 if func:
                     func(*args, **kwargs)
 
             else:
                 for middle in middles:
-                    win32api.SetCursorPos(middle)
+                    mouse_move(middle)
                     sleep(0.03)
                     if func:
                         func(*args, **kwargs)
         else:
             if middles is not None:
                 for middle in middles:
-                    win32api.SetCursorPos(middle)
+                    mouse_move(middle)
