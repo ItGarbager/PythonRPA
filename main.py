@@ -1,7 +1,7 @@
 import logging
 import warnings
 
-from claess import get_xlsx_tasks
+from classes import get_xlsx_tasks
 from tools import do_tasks
 
 warnings.filterwarnings('ignore')

@@ -1,12 +1,8 @@
 import logging
-import traceback
 import warnings
 
-import pandas as pd
-from pynput.mouse import Button
-
-from claess import Task, TaskList, Input
-from tools import to_do, do_tasks
+from classes import Task, TaskList, Input
+from tools import do_tasks
 
 warnings.filterwarnings('ignore')
 logging.basicConfig(
@@ -19,10 +15,10 @@ logger = logging.getLogger(__name__)
 
 def test_action1():
     tasks = (
-        Task('mouse_click', None, 'right', 1).get_data(),
-        Task(None, 'images/test/0.png').get_data(),
-        Task('mouse_click', 'images/test/-1.png', 'left', 1).get_data(),
-        Input(11, None, (100, 100), True).task,
+        Task('mouse_click', None, 'right', 1).get_data(),  # 单击右键
+        Task(None, 'images/test/0.png').get_data(),  # 移动至图片处
+        Task('mouse_click', 'images/test/-1.png', 'left', 1).get_data(),  # 左键单击图所在的位置
+        Input(11, (100, 100), True).task.get_data(),  # 向下向右移动鼠标100
         ('mouse_click', 'images/test/1.png', 'right', 1),  # 右键单击图所在的位置
         ('mouse_click', 'images/test/2.png', 'left', 1),  # 左键单击图所在的位置
         ('keyboard_type', None, '6hikgkjkh'),  # 输入文本
