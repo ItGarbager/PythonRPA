@@ -66,7 +66,7 @@ class TaskList:
     def __str__(self):
         if hasattr(self, 'name'):
             return f'<TaskList {self.name}>'
-
+        return f'<TaskList({[task.action for task in self.task_list]})>'
     __repr__ = __str__
 
 
