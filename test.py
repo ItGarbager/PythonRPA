@@ -9,12 +9,20 @@ from claess import Task, TaskList, Input
 from tools import to_do, do_tasks
 
 warnings.filterwarnings('ignore')
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(
+    level=logging.INFO,  # 定义输出到文件的log级别，
+    format='%(levelname)-8s[%(asctime)s] %(name)s-%(lineno)d : %(message)s',  # 定义输出log的格式
+    datefmt='%y-%m-%d %H:%M:%S',
+)
 logger = logging.getLogger(__name__)
 
 
 def test_action1():
     tasks = (
+        Task('mouse_click', None, 'right', 1).get_data(),
+        Task(None, 'images/test/0.png').get_data(),
+        Task('mouse_click', 'images/test/-1.png', 'left', 1).get_data(),
+        Input(11, None, (100, 100), True).task,
         ('mouse_click', 'images/test/1.png', 'right', 1),  # 右键单击图所在的位置
         ('mouse_click', 'images/test/2.png', 'left', 1),  # 左键单击图所在的位置
         ('keyboard_type', None, '6hikgkjkh'),  # 输入文本
@@ -64,28 +72,6 @@ def test_action2():
         ),
     )
 
-    do_tasks(tasks)
-
-
-def test_action3():
-    df = pd.read_excel('tasks.xlsx', names=[
-        'action', 'arg', 'image', 'kwargs',
-        'threshold', 'do_count', 'loop_limit',
-        'is_require', 'is_many'
-    ])
-    df.fillna(0, inplace=True)
-
-    task_list = (
-        Input(action, arg, image_path=image, **eval(kwargs.replace('TRUE', 'True').replace('FALSE', 'False'))).task
-        for action, arg, image, kwargs, _, _, _, _, _ in df.values.tolist()
-    )
-    tasks = TaskList(
-        *task_list
-        # Input(Action.click_left_button, 1, image_path='test.png').task,
-        # Input(Action.actions, TaskList(
-        #     Task('sleep', 1.2)
-        # ), is_many=True).task
-    )
     do_tasks(tasks)
 
 
