@@ -72,36 +72,51 @@ class TaskList:
 
 class Action:
     """事件"""
-    nothing = 0
-    click_left_button = 1
-    click_right_button = 2
-    press_left_button = 3
-    release_left_button = 4
-    scroll_button = 5
-    input_str = 6
-    press_keyboard = 7
-    sleep = 8
-    exit = 9
-    actions = 10
-    move = 11
+
+    class input:
+        nothing = 0
+        mouse_click_left = 1
+        mouse_click_right = 2
+        mouse_press_left = 3
+        mouse_release_left = 4
+        mouse_scroll = 5
+        keyboard_type = 6
+        keyboard_group = 7
+        sleep = 8
+        exit = 9
+        actions = 10
+        mouse_move = 11
+
+    class task:
+        nothing = ''
+        mouse_move = 'mouse_move'
+        mouse_click = 'mouse_click'
+        mouse_press = 'mouse_press'
+        mouse_release = 'mouse_release'
+        mouse_scroll = 'mouse_scroll'
+        keyboard_type = 'keyboard_type'
+        keyboard_group = 'keyboard_group'
+        sleep = 'sleep'
+        exit = 'exit'
+        actions = 'actions'
 
 
 class Input:
     """根据传入参数构建 TaskList 生成器对象"""
     # 构建一个初始化的类型字典
     __action_dict = {
-        Action.nothing: ['', None],  # 未传入事件
-        Action.click_left_button: ['mouse_click', None, 'left'],
-        Action.click_right_button: ['mouse_click', None, 'right'],
-        Action.press_left_button: ['mouse_press', None, 'left'],
-        Action.release_left_button: ['mouse_release', None, 'right'],
-        Action.scroll_button: ['mouse_scroll', None, 0],
-        Action.input_str: ['keyboard_type', None],
-        Action.press_keyboard: ['keyboard_group', None],
-        Action.sleep: ['sleep', None],
-        Action.exit: ['exit', None],
-        Action.actions: ['actions', None],
-        Action.move: ['mouse_move', None]
+        Action.input.nothing: [Action.task.nothing, None],  # 未传入事件
+        Action.input.mouse_move: [Action.task.mouse_move, None],
+        Action.input.mouse_click_left: [Action.task.mouse_click, None, 'left'],
+        Action.input.mouse_click_right: [Action.task.mouse_click, None, 'right'],
+        Action.input.mouse_press_left: [Action.task.mouse_press, None, 'left'],
+        Action.input.mouse_release_left: [Action.task.mouse_release, None, 'right'],
+        Action.input.mouse_scroll: [Action.task.mouse_scroll, None, 0],
+        Action.input.keyboard_type: [Action.task.keyboard_type, None],
+        Action.input.keyboard_group: [Action.task.keyboard_group, None],
+        Action.input.actions: [Action.task.actions, None],
+        Action.input.sleep: [Action.task.sleep, None],
+        Action.input.exit: [Action.task.exit, None],
     }
 
     def __init__(
@@ -118,9 +133,9 @@ class Input:
 
             args = (args,)
         if not action:
-            action = Action.nothing
+            action = Action.input.nothing
 
-        if action == Action.actions:
+        if action == Action.input.actions:
             # 若为事件集类型则调用 get_xlsx_tasks 函数继续获取相应事件集的 TaskList 生成器对象
             args = (get_xlsx_tasks(excel_path=excel_path, sheet_name=args[0]),)
         __action_dict = self.__action_dict.copy()
