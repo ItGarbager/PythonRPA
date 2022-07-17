@@ -2,6 +2,7 @@
 利用opencv+pynput实现的Python RPA工具  
 
 ![](./RPA.jpg)
+
 ## 安装环境
 python版本 3.7.4 （高于3.8 pywin32应该安装有影响）
 ###  依赖安装
