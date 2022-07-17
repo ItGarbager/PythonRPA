@@ -15,6 +15,8 @@ import win32gui
 import win32ui
 from pynput.keyboard import Key
 
+from classes import MatchImageError
+
 logger = logging.getLogger(__name__)
 
 
@@ -43,6 +45,13 @@ def mouse_click(key='left', count=1):  # 模拟鼠标点击
     for i in range(count):
         mouse_press(key)
         mouse_release(key)
+
+
+def mouse_scroll(dx, dy):
+    if dx:
+        win32api.mouse_event(win32con.MOUSEEVENTF_HWHEEL, 0, 0, dx)
+    if dy:
+        win32api.mouse_event(win32con.MOUSEEVENTF_WHEEL, 0, 0, dy)
 
 
 # -------------- 重写 type
@@ -147,6 +156,74 @@ def grab_screen(region=None):
     return img  # , cv2.cvtColor(img, cv2.COLOR_BGRA2RGB)
 
 
+def py_nms(dets, thresh):
+    """Pure Python NMS baseline."""
+    # x1、y1、x2、y2、以及score赋值
+    # （x1、y1）（x2、y2）为box的左上和右下角标
+    x1 = dets[:, 0]
+    y1 = dets[:, 1]
+    x2 = dets[:, 2]
+    y2 = dets[:, 3]
+    scores = dets[:, 4]
+    # 每一个候选框的面积
+    areas = (x2 - x1 + 1) * (y2 - y1 + 1)
+    # order是按照score降序排序的
+    order = scores.argsort()[::-1]
+    # print("order:",order)
+
+    keep = []
+    while order.size > 0:
+        i = order[0]
+        keep.append(i)
+        # 计算当前概率最大矩形框与其他矩形框的相交框的坐标，会用到numpy的broadcast机制，得到的是向量
+        xx1 = np.maximum(x1[i], x1[order[1:]])
+        yy1 = np.maximum(y1[i], y1[order[1:]])
+        xx2 = np.minimum(x2[i], x2[order[1:]])
+        yy2 = np.minimum(y2[i], y2[order[1:]])
+        # 计算相交框的面积,注意矩形框不相交时w或h算出来会是负数，用0代替
+        w = np.maximum(0.0, xx2 - xx1 + 1)
+        h = np.maximum(0.0, yy2 - yy1 + 1)
+        inter = w * h
+        # 计算重叠度IOU：重叠面积/（面积1+面积2-重叠面积）
+        ovr = inter / (areas[i] + areas[order[1:]] - inter)
+        # 找到重叠度不高于阈值的矩形框索引
+        inds = np.where(ovr <= thresh)[0]
+        # print("inds:",inds)
+        # 将order序列更新，由于前面得到的矩形框索引要比矩形框在原order序列中的索引小1，所以要把这个1加回来
+        order = order[inds + 1]
+    return keep
+
+
+def match_template(img_gray, template_img, template_threshold):
+    """
+    img_gray:待检测的灰度图片格式
+    template_img:模板小图，也是灰度化了
+    template_threshold:模板匹配的置信度
+    """
+
+    h, w = template_img.shape[:2]
+    res = cv2.matchTemplate(img_gray, template_img, cv2.TM_CCOEFF_NORMED)
+    loc = np.where(res >= template_threshold)  # 大于模板阈值的目标坐标
+    score = res[res >= template_threshold]  # 大于模板阈值的目标置信度
+    # 将模板数据坐标进行处理成左上角、右下角的格式
+    xmin = np.array(loc[1])
+    ymin = np.array(loc[0])
+    xmax = xmin + w
+    ymax = ymin + h
+    xmin = xmin.reshape(-1, 1)  # 变成n行1列维度
+    xmax = xmax.reshape(-1, 1)  # 变成n行1列维度
+    ymax = ymax.reshape(-1, 1)  # 变成n行1列维度
+    ymin = ymin.reshape(-1, 1)  # 变成n行1列维度
+    score = score.reshape(-1, 1)  # 变成n行1列维度
+    data_hlist = [xmin, ymin, xmax, ymax, score]
+    data_hstack = np.hstack(data_hlist)  # 将xmin、ymin、xmax、yamx、scores按照列进行拼接
+    thresh = 0.3  # NMS里面的IOU交互比阈值
+
+    keep_dets = py_nms(data_hstack, thresh)
+    dets = data_hstack[keep_dets]  # 最终的nms获得的矩形框
+    return dets
+
+
 def match_image(image_path, img_rgb, threshold=0.95, is_show=False, is_many=False) -> List:
     """
     opencv 实现图片匹配
@@ -158,8 +235,9 @@ def match_image(image_path, img_rgb, threshold=0.95, is_show=False, is_many=Fals
     :return: 匹配到的目标坐标的列表
     """
 
-    def fo():
-        right_bottom = (left_top[0] + w, left_top[1] + h)  # 右下角
+    def fo(left_top=None, right_bottom=None):
+        if right_bottom is None:
+            right_bottom = (left_top[0] + w, left_top[1] + h)  # 右下角
         middles.append((left_top[0] + math.floor(w / 2), left_top[1] + math.floor(h / 2)))  # 中间的位置
         if is_show:
             cv2.rectangle(img_rgb, left_top, right_bottom, (0, 0, 255), 2)  # 画出矩形位置
@@ -167,21 +245,22 @@ def match_image(image_path, img_rgb, threshold=0.95, is_show=False, is_many=Fals
     template = cv2.imread(image_path, 0)
     h, w = template.shape[:2]
     img_gray = cv2.cvtColor(img_rgb, cv2.COLOR_BGR2GRAY)
-    res = cv2.matchTemplate(img_gray, template, cv2.TM_CCOEFF_NORMED)
     middles = []
 
     if is_many:
-        loc = np.where(res >= threshold)
+        dets = match_template(img_gray, template, threshold)
         # np.where返回的坐标值(x,y)是(h,w)，注意h,w的顺序
-        for left_top in zip(*loc[::-1]):
-            fo()
+        for coord in dets:
+            left_top = (int(coord[0]), int(coord[1]))
+            fo(left_top, right_bottom=(int(coord[2]), int(coord[3])))
 
     else:
+        res = cv2.matchTemplate(img_gray, template, cv2.TM_CCOEFF_NORMED)
         min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(res)
         # 取匹配程度大于 threshold 的坐标
         if max_val > threshold:
             left_top = max_loc  # 左上角
-            fo()
+            fo(left_top)
     return middles
 
 
@@ -202,6 +281,8 @@ def do_tasks(tasks):
         exit(1)
     except KeyboardInterrupt:
         exit(1)
+    except MatchImageError as e:
+        logger.error(f'{e}')
     except:
         logger.error(f'{traceback.format_exc()}')
 
@@ -236,8 +317,7 @@ def to_do(
                     logger.warning(f'{image_path:<25} retry {c}')
             if not middles:
                 if is_require:
-                    logger.error(f'Match image failed, please check image {image_path}')
-                    exit(0)
+                    raise MatchImageError(f'Match image failed, please check image {image_path}')
                 else:
                     return
             logger.info(f'matched {image_path} ==> {middles}')
