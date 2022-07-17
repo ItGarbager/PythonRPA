@@ -9,6 +9,10 @@ import win32con
 logger = logging.getLogger(__name__)
 
 
+class MatchImageError(Exception):
+    pass
+
+
 class Task:
     """自动化任务对象"""
 
@@ -67,6 +71,7 @@ class TaskList:
         if hasattr(self, 'name'):
             return f'<TaskList {self.name}>'
         return f'<TaskList({[task.action for task in self.task_list]})>'
+
     __repr__ = __str__
 
 
